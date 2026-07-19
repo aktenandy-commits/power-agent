@@ -53,12 +53,12 @@ class ProcessGroup:
     def cpu_formatted(self) -> str:
         if self.cpu_total is None:
             return "-"
-        return f"{self.cpu_total:.1f}"
+        return f"{self.cpu_total:.1f}s"
 
     def __str__(self) -> str:
         if self.count == 1 and self.pid_single is not None:
-            return f"{self.name} (PID {self.pid_single}) CPU={self.cpu_formatted} RAM={self.ram_mb}"
-        return f"{self.name} ({self.count} Prozesse) CPU={self.cpu_formatted} RAM={self.ram_mb}"
+            return f"{self.name} (PID {self.pid_single}) CPU-Zeit ges.={self.cpu_formatted} RAM={self.ram_mb}"
+        return f"{self.name} ({self.count} Prozesse) CPU-Zeit ges.={self.cpu_formatted} RAM={self.ram_mb}"
 
 
 def run_powershell(command: str) -> str:
