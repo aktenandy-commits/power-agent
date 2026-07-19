@@ -1,86 +1,85 @@
-\# Power-Agent
+# Power-Agent
 
+A small Windows system monitor. It reads the active power plan, the top
+processes by CPU time and RAM, and the battery state, then writes a report,
+prints a machine-readable summary line, and signals a severity through its
+exit code.
 
+The report text is in German — the output is written for its user, not for
+publication. The code, on the other hand, uses only the Python standard
+library and PowerShell; there are no external dependencies.
 
-Windows system monitoring agent that analyzes battery, CPU, and RAM usage with automated risk assessment and n8n workflow integration.
+## What it does
 
+On each run the script:
 
+- reads the active Windows power plan (`powercfg /getactivescheme`),
+- lists the top 5 processes by cumulative CPU time and by RAM working set
+  (`Get-Process`, grouped by process name),
+- reads the battery charge and status (`Win32_Battery` via CIM),
+- derives a risk level of `LOW`, `MEDIUM`, or `HIGH`,
+- writes `power_agent_report.txt` next to the script,
+- prints a `METRICS:` line and an `ACTION_HINT:` line for machine parsing,
+- exits with a code that mirrors the risk level.
 
-\## Features
+## Risk level
 
+The risk level is driven by the battery alone, and only while the battery is
+discharging. On AC power it stays `LOW`.
 
+| Risk   | Condition                              | Exit code |
+|--------|----------------------------------------|-----------|
+| LOW    | on AC power, or charge above 50%       | 0         |
+| MEDIUM | discharging and charge at or below 50% | 1         |
+| HIGH   | discharging and charge at or below 35% | 2         |
 
-\- Battery monitoring (charge level, power status)
+CPU and RAM usage do not change the risk level — they only feed the process
+lists and the recommendations. A failure while writing the report also exits
+with code 2.
 
-\- Top 5 CPU-intensive processes
+## CPU column
 
-\- Top 5 RAM-consuming processes
+The CPU figure is the **cumulative CPU time in seconds** since each process
+started (`Get-Process`'s `CPU` property), not current utilization. Because it
+accumulates, long-running processes (for example a local model server) tend to
+sit at the top of the list regardless of what they are doing right now. The
+report labels this column `CPU-Zeit ges.` to keep that honest.
 
-\- Automated risk assessment (OK / WARN / CRITICAL)
+## Output
 
-\- Machine-readable METRICS line for n8n parsing
+`power_agent_report.txt` holds the human-readable report. Two lines in it are
+meant for machine parsing:
 
-\- Actionable recommendations in German
+```
+METRICS: battery=33 status=Entlädt risk=HIGH edge_count=9 edge_ram=253 MB ...
+ACTION_HINT: close=msedge,claude,code
+```
 
+The exit code (0 / 1 / 2) carries the same severity, so a caller can react
+without parsing the file.
 
+## Requirements
 
-\## Architecture
+- Windows
+- Python 3 (standard library only — no `pip install` needed)
+- PowerShell (ships with Windows)
 
-Python Script (v12) → Runner (HTTP Server :8787) → n8n Workflow
+## Usage
 
-├── Check CRITICAL (exit\_code 2)
+```
+py power_agent_report_v12.py
+```
 
-├── Check WARN (exit\_code 1)
+The report is written to `power_agent_report.txt` in the same folder, and the
+process exits with the risk code above.
 
-└── Status OK (exit\_code 0)
+## Beyond this repo
 
+The exit code and the `METRICS:` line make the script easy to drive from
+something else. In the author's setup a small HTTP runner (port 8787) and an
+n8n workflow sit on top and react to the severity on a schedule. Those pieces
+are an external layer, not part of this repository.
 
+## License
 
-\## Tech Stack
-
-
-
-\- Python 3 (psutil, subprocess)
-
-\- n8n workflow automation
-
-\- HTTP Runner on port 8787
-
-
-
-\## Exit Codes
-
-
-
-| Code | Status | Severity | Trigger |
-
-|------|--------|----------|---------|
-
-| 0 | OK | LOW | All systems normal |
-
-| 1 | WARN | MEDIUM | Battery < 30% or high resource usage |
-
-| 2 | CRITICAL | HIGH | Battery < 10% or system overload |
-
-
-
-\## Setup
-
-
-
-1\. Install Python dependencies: `pip install psutil`
-
-2\. Start the runner: `python runner.py` (Port 8787)
-
-3\. Import the n8n workflow
-
-4\. Configure Schedule Trigger interval
-
-
-
-\## License
-
-
-
-GPL-3.0 - see \[LICENSE](LICENSE)
-
+MIT — see [LICENSE](LICENSE).
