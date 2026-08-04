@@ -9,3 +9,5 @@ power_agent_report_v8.py
 power_agent_report_v9.py
 power_agent_report_v10.py
 power_agent_report_v11.py
+runner/
+n8n/
